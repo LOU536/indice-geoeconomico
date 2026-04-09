@@ -2,56 +2,62 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. Configuración de la página
-st.set_page_config(page_title="Índice Geoeconómico 2026", layout="wide")
+# 1. Configuración de la interfaz
+st.set_page_config(page_title="ICG Master Monitor 2026", layout="wide")
+st.title("🌎 Índice del Umbral de Conversión Geoeconómica (ICG)")
+st.markdown("### Monitor de Vulnerabilidad y Poder de Choque Estratégico")
 
-st.title("🌐 Monitor del Umbral de Conversión Geoeconómica")
-st.markdown("### Estrategia de Aranceles y Poder Global (Escenario 2026)")
-
-# 2. Base de Datos Integrada (Para que no necesites archivos extra)
+# 2. Base de Datos Maestra Final
 data = {
-    'Pais': ['Estados Unidos', 'China', 'Irán', 'Alemania', 'India', 'Rusia', 'México', 'Taiwán'],
-    'ISO_Code': ['USA', 'CHN', 'IRN', 'DEU', 'IND', 'RUS', 'MEX', 'TWN'],
-    'Apalancamiento_Recursos': [0.98, 0.88, 0.75, 0.45, 0.60, 0.92, 0.35, 0.99],
-    'Dependencia_EEUU': [0.05, 0.20, 0.02, 0.18, 0.15, 0.01, 0.88, 0.30],
-    'Vulnerabilidad_Arancelaria': [0.0, 0.70, 0.95, 0.15, 0.10, 0.85, 0.40, 0.05]
+    'Pais': [
+        'EE.UU.', 'China', 'Irán', 'Venezuela', 'Rusia', 
+        'Arabia Saudita', 'México', 'Vietnam', 'Guyana', 'Brasil', 'India'
+    ],
+    'ISO_Code': [
+        'USA', 'CHN', 'IRN', 'VEN', 'RUS', 
+        'SAU', 'MEX', 'VNM', 'GUY', 'BRA', 'IND'
+    ],
+    # Poder basado en recursos/tecnología (0 a 1)
+    'Apalancamiento': [0.99, 0.90, 0.75, 0.82, 0.92, 0.90, 0.40, 0.65, 0.70, 0.75, 0.70],
+    # Cuánto daño le hace un arancel de EE.UU. (0 a 1)
+    'Sensibilidad_Arancelaria': [0.0, 0.75, 0.98, 0.99, 0.90, 0.30, 0.95, 0.50, 0.20, 0.35, 0.25],
+    # Qué tan alineado está con el bloque dólar (0 a 1)
+    'Alineacion_Oeste': [1.0, 0.1, 0.05, 0.05, 0.05, 0.60, 0.85, 0.70, 0.90, 0.50, 0.65]
 }
 df = pd.DataFrame(data)
 
-# 3. Sidebar: El "Gatillo" de la Estrategia Trump
-st.sidebar.header("🕹️ Simulador de Presión Geoeconómica")
-st.sidebar.info("Ajusta el nivel de aranceles de EE.UU. para ver cómo colapsa o resiste el poder de conversión de otros países.")
+# 3. Sidebar: El Factor Trump 2026
+st.sidebar.header("🕹️ Panel de Control Geopolítico")
+presion_global = st.sidebar.slider("Nivel de Aranceles/Sanciones (%)", 0, 100, 25)
+st.sidebar.markdown("---")
+st.sidebar.write("**Definición del ICG:** Mide la capacidad de un país para resistir presión externa y convertir sus recursos en poder político.")
 
-arancel_usa = st.sidebar.slider("Nivel de Aranceles de EE.UU. (%)", 0, 100, 15)
+# 4. Cálculo del Índice
+# La fórmula: ICG = Apalancamiento - (Sensibilidad * Presión)
+df['ICG_Final'] = (df['Apalancamiento'] - (df['Sensibilidad_Arancelaria'] * (presion_global / 100))) * 100
 
-# 4. Lógica del Índice (Fórmula de Conversión)
-# El poder de conversión cae cuando el arancel impacta la economía del país objetivo
-df['ICG_Final'] = (df['Apalancamiento_Recursos'] * (1 - (df['Vulnerabilidad_Arancelaria'] * (arancel_usa/100)))) * 100
-
-# 5. Visualización del Mapa
+# 5. Mapa Mundial
 fig = px.choropleth(
     df, 
     locations="ISO_Code", 
-    color="ICG_Calculado" if 'ICG_Calculado' in df else "ICG_Final",
+    color="ICG_Final",
     hover_name="Pais",
-    hover_data=['Apalancamiento_Recursos', 'Dependencia_EEUU'],
+    hover_data=['Apalancamiento', 'Alineacion_Oeste'],
     projection="natural earth",
-    color_continuous_scale=px.colors.sequential.YlOrRd,
-    title="Mapa de Poder de Conversión Geoeconómica"
+    color_continuous_scale="RdYlGn", # Rojo (Peligro) a Verde (Poder)
+    range_color=[0, 100]
 )
-
 st.plotly_chart(fig, use_container_width=True)
 
-# 6. Análisis Táctico
-st.markdown("---")
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("Ranking de Poder")
-    st.dataframe(df[['Pais', 'ICG_Final']].sort_values(by='ICG_Final', ascending=False))
+# 6. Gráfico de Comparación Directa
+st.subheader("📊 Comparativa de Resiliencia: Bloque Crítico")
+fig_bar = px.bar(df.sort_values('ICG_Final'), x='Pais', y='ICG_Final', color='ICG_Final',
+                 color_continuous_scale="RdYlGn", text_auto='.1f')
+st.plotly_chart(fig_bar, use_container_width=True)
 
-with col2:
-    st.subheader("Análisis de Situación")
-    if arancel_usa > 50:
-        st.warning("⚠️ ALTA PRESIÓN: El umbral de conversión de países dependientes (como México o China) se está reduciendo drásticamente. EE.UU. está 'armamentizando' su mercado doméstico.")
-    else:
-        st.success("✅ ESTABILIDAD RELATIVA: El poder de conversión se mantiene basado en recursos naturales y tecnología.")
+# 7. Conclusión Dinámica
+st.markdown("---")
+if presion_global > 70:
+    st.error(f"⚠️ **ESTADO DE GUERRA ECONÓMICA:** Con un {presion_global}% de presión, Irán y Venezuela pierden casi toda su capacidad de maniobra. China entra en zona de recesión estratégica.")
+elif presion_global < 30:
+    st.success(f"✅ **COMPETENCIA DE MERCADO:** Con un {presion_global}% de presión, la mayoría de los países mantienen su umbral de conversión estable.")
